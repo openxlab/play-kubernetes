@@ -138,5 +138,14 @@ kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | gre
 
 ```
 
+#### 配置Helm
 
+```bash
+curl -x http://192.168.80.5:1090 -O https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-linux-amd64.tar.gz
+tar -zxvf helm-v2.10.0-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/helm && rm -rf linux-amd64 helm-v2.10.0-linux-amd64.tar.gz
+helm init
+helm version
+kubectl get pods --namespace kube-system
+```
 
