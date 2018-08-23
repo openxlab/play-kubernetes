@@ -90,6 +90,51 @@ sudo kubeadm init \
   --kubernetes-version=v1.11.2 \
   --pod-network-cidr=10.244.0.0/16 \
   --apiserver-advertise-address=192.168.80.100
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+kubectl taint nodes --all node-role.kubernetes.io/master-
+kubectl get pods --all-namespaces
+kubectl get services --all-namespaces
+kubectl get nodes -o wide
+kubectl cluster-info
+
+curl -x http://192.168.80.5:1090 -O https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f kube-flannel.yml
+curl -x http://192.168.80.5:1090 -O https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+kubectl apply -f kubernetes-dashboard.yaml
+
+kubectl -n kube-system edit service kubernetes-dashboard
+type: ClusterIP >> type: NodePort
+kubectl -n kube-system get service kubernetes-dashboard
+https://192.168.80.100:30436
+
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-admin
+  namespace: kube-system
+EOF
+
+cat <<EOF | kubectl create -f -
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-rolebinding-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kube-admin
+  namespace: kube-system
+EOF
+
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep kube-admin | awk '{print $1}')
 
 ```
 
