@@ -35,7 +35,7 @@ sudo reboot
 alias curl='curl -x http://192.168.80.5:1090'
 export http_proxy="http://192.168.80.5:1090"
 export https_proxy="https://192.168.80.5:1090"
-export no_proxy="localhost,127.0.0.1,192.168.80.100"
+export no_proxy="localhost,127.0.0.1,172.17.0.0/16,192.168.80.100"
 
 echo 'Acquire::http::Proxy "http://192.168.80.5:1090";' | sudo tee /etc/apt/apt.conf
 ```
@@ -62,4 +62,36 @@ sudo apt-get install -y docker-ce
 sudo usermod -a -G docker $USER
 sudo systemctl enable docker && sudo systemctl start docker
 ```
+
+#### 采用kubeadm部署Kubernetes
+
+```bash
+curl -x http://192.168.80.5:1090 -s https://packages.cloud.google.com/apt/doc/apt-key.gpg |sudo apt-key add -
+sudo add-apt-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+sudo apt-get update
+
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+sudo mkdir -p /etc/systemd/system/docker.service.d
+cat <<EOF | sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf
+[Service]
+Environment="HTTP_PROXY=http://192.168.80.5:1090/"
+Environment="HTTPS_PROXY=http://192.168.80.5:1090/"
+Environment="NO_PROXY=127.0.0.1,172.17.0.0/16,192.168.80.100"
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl show --property=Environment docker
+sudo systemctl restart docker
+
+sudo kubeadm config images pull --v=4
+sudo kubeadm init \
+  --kubernetes-version=v1.11.2 \
+  --pod-network-cidr=10.244.0.0/16 \
+  --apiserver-advertise-address=192.168.80.100
+
+```
+
+
 
