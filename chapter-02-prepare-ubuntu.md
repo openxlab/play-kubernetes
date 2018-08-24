@@ -141,11 +141,45 @@ kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | gre
 #### 配置Helm
 
 ```bash
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tiller
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: tiller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: tiller
+    namespace: kube-system
+EOF
+
 curl -x http://192.168.80.5:1090 -O https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-linux-amd64.tar.gz
 tar -zxvf helm-v2.10.0-linux-amd64.tar.gz
 sudo mv linux-amd64/helm /usr/local/bin/helm && rm -rf linux-amd64 helm-v2.10.0-linux-amd64.tar.gz
-helm init
+helm init --service-account tiller
 helm version
 kubectl get pods --namespace kube-system
 ```
+
+#### 配置minio
+
+```bash
+curl -L -O https://kubernetes-charts.storage.googleapis.com/minio-1.6.2.tgz
+tar -zxvf minio-1.6.2.tgz
+sed -i 's/type: ClusterIP/type: NodePort/' ./minio/values.yaml
+sed -i 's/# nodePort: 31311/nodePort: 30900/' ./minio/values.yaml
+helm install --name minio-162 --set accessKey=minio,secretKey=miniominio,persistence.enabled=false ./minio
+helm delete --purge minio-162
+```
+
+
 
