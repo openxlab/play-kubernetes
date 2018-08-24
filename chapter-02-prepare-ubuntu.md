@@ -181,7 +181,7 @@ helm install --name minio-162 --set accessKey=minio,secretKey=miniominio,persist
 helm delete --purge minio-162
 ```
 
-#### 使用PV PVC部署minio
+#### 使用PV PVC\(local-storage\)部署minio
 
 ```yaml
 mkdir -p /home/admuser/localpv
