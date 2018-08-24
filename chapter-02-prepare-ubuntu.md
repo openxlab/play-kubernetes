@@ -181,5 +181,107 @@ helm install --name minio-162 --set accessKey=minio,secretKey=miniominio,persist
 helm delete --purge minio-162
 ```
 
+#### 使用PV PVC部署minio
 
+```yaml
+mkdir -p /home/admuser/localpv
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: openxlab-local-pv-5gi
+spec:
+  capacity:
+    storage: 5Gi 
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /home/admuser/localpv
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-master
+EOF
+
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  # This name uniquely identifies the PVC. Will be used in deployment below.
+  name: minio-pv-claim
+  labels:
+    app: minio-storage-claim
+spec:
+  # Read more about access modes here: http://kubernetes.io/docs/user-guide/persistent-volumes/#access-modes
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    # This is the request for storage. Should be available in the cluster.
+    requests:
+      storage: 2Gi
+  # Uncomment and add storageClass specific to your requirements below. Read more https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1
+  storageClassName: local-storage
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: minio-deployment
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        # Label is used as selector in the service.
+        app: minio
+    spec:
+      # Refer to the PVC created earlier
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          # Name of the PVC created earlier
+          claimName: minio-pv-claim
+      containers:
+      - name: minio
+        # Pulls the default Minio image from Docker Hub
+        image: minio/minio
+        args:
+        - server
+        - /storage
+        env:
+        # Minio access key and secret key
+        - name: MINIO_ACCESS_KEY
+          value: "minio"
+        - name: MINIO_SECRET_KEY
+          value: "minio2018"
+        ports:
+        - containerPort: 9000
+        # Mount the volume into the pod
+        volumeMounts:
+        - name: storage # must match the volume name, above
+          mountPath: "/storage"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+spec:
+  type: NodePort
+  ports:
+    - port: 9000
+      nodePort: 30900
+      targetPort: 9000
+      protocol: TCP
+  selector:
+    app: minio
+EOF
+
+```
 
