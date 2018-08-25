@@ -101,15 +101,18 @@ kubectl get services --all-namespaces
 kubectl get nodes -o wide
 kubectl cluster-info
 
-curl -x http://192.168.80.5:1090 -O https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+curl -x http://proxyhk.zte.com.cn:80 -O https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 kubectl apply -f kube-flannel.yml
-curl -x http://192.168.80.5:1090 -O https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+curl -x http://proxyhk.zte.com.cn:80 -O https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+curl -x http://proxyhk.zte.com.cn:80 -O https://raw.githubusercontent.com/kubernetes/dashboard/v1.8.3/src/deploy/recommended/kubernetes-dashboard.yaml
+echo "  type: NodePort" >> kubernetes-dashboard.yaml
+sed -i 's/- port: 443/- port: 443\n      nodePort: 30443/' kubernetes-dashboard.yaml
 kubectl apply -f kubernetes-dashboard.yaml
 
 kubectl -n kube-system edit service kubernetes-dashboard
 type: ClusterIP >> type: NodePort
 kubectl -n kube-system get service kubernetes-dashboard
-https://192.168.80.100:30436
+https://192.168.80.100:30443
 
 cat <<EOF | kubectl create -f -
 apiVersion: v1
@@ -120,22 +123,26 @@ metadata:
 EOF
 
 cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tiller
+  namespace: kube-system
+---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: kube-rolebinding-admin
+  name: tiller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
-- kind: ServiceAccount
-  name: kube-admin
-  namespace: kube-system
+  - kind: ServiceAccount
+    name: tiller
+    namespace: kube-system
 EOF
-
-kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep kube-admin | awk '{print $1}')
-
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep tiller | awk '{print $1}')
 ```
 
 #### 配置Helm
